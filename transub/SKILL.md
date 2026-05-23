@@ -18,7 +18,7 @@ SKILL_DIR=/path/to/transub
 python "$SKILL_DIR/scripts/subtitle_workflow.py" doctor
 python "$SKILL_DIR/scripts/subtitle_workflow.py" models
 python "$SKILL_DIR/scripts/subtitle_workflow.py" validate input.srt
-python "$SKILL_DIR/scripts/subtitle_workflow.py" audit input.srt --max-width 42 --max-cps 20
+python "$SKILL_DIR/scripts/subtitle_workflow.py" audit input.srt --max-han-chars 20 --max-cps 20
 python "$SKILL_DIR/scripts/subtitle_workflow.py" convert input.srt --output input.segments.json
 python "$SKILL_DIR/scripts/subtitle_workflow.py" export input.segments.json --format vtt --output input.vtt
 ```
@@ -45,17 +45,20 @@ The helper expects Python 3.10+, `ffmpeg` on `PATH`, and `faster-whisper` only f
    - `.srt`, `.vtt`, or `.json`: run `validate`
    - edited JSON: run `export`, then validate the exported subtitle
 2. Before text edits, convert SRT/VTT to `segments.json` when useful so every cue has an `index`, `start`, `end`, and `text`.
-3. For translation or polishing, process chunks of 5-20 cues. Return JSON only, with original indices as keys and transformed text as values.
-4. Reconstruct the full segment list without changing indices or timestamps.
-5. Validate and audit the final `segments.json` and exported `.srt`/`.vtt`.
-6. Hand back file paths plus a short QA note. Do not paste full subtitle contents unless the user asks.
+3. Before translation, build a global brief: source language, target language, style, recurring terms, names, invented concepts, and anything that must not be normalized.
+4. If the subtitle file fits comfortably in context, translate or polish the whole file in one structured pass. If it is too large, use overlapping windows, not isolated batches: include the previous and next few cues as context, carry a live term/style ledger forward, and return JSON keyed by original cue IDs.
+5. After any windowed work, run a full-file reconciliation pass. Fix terminology drift, tone drift, pronoun/name inconsistencies, and awkward joins at window boundaries before exporting.
+6. Reconstruct the full segment list without changing indices or timestamps unless retiming/resegmentation was explicitly requested.
+7. Validate and audit the final `segments.json` and exported `.srt`/`.vtt`.
+8. Hand back file paths plus a short QA note. Do not paste full subtitle contents unless the user asks.
 
 ## Invariants
 
 - Keep subtitle IDs stable during correction, translation, and polishing.
 - Keep `start` and `end` timestamps unchanged unless the task is explicitly timing repair.
 - Never merge, split, add, or delete lines during translation/polishing without first explaining the consequence.
-- Return machine-parseable JSON for transformed chunks: keys are original IDs, values are transformed text only.
+- Return machine-parseable JSON for transformed windows: keys are original IDs, values are transformed text only.
+- Never treat window outputs as final by themselves. The final deliverable must pass a whole-file review for consistency and boundary flow.
 - Re-validate after each transformation before exporting final SRT/VTT.
 - Do not "correct" product names, coined terms, proper nouns, or brand-new concepts just because they look unusual. Preserve repeated unusual terms unless the user or source evidence says they are wrong.
 - Do not infer ASR language failure from unexpected language alone. First consider that the downloaded media, dubbed audio track, or selected YouTube language may actually be in that language.
@@ -65,9 +68,9 @@ The helper expects Python 3.10+, `ffmpeg` on `PATH`, and `faster-whisper` only f
 - Prefer natural, conversational target-language subtitles over literal phrasing.
 - Keep terminology consistent; load glossary files when provided.
 - Build a short term list from repeated names and concepts before polishing, and ask or preserve when uncertain instead of normalizing to a familiar term.
-- Use surrounding lines as context, but translate only the current chunk values.
-- Avoid overlong lines; for CJK translation, target roughly 30 display-width units when practical.
-- Treat 42 display-width units as a warning threshold and 60 as severe for single-line subtitles unless the user asks for dense subtitles.
+- Use surrounding lines as context, but translate only the current window values.
+- Avoid overlong lines. For Chinese subtitles, target about 18-20 Han characters per cue; shorter is fine for short utterances, and more than about 20 should be treated as a readability warning rather than a normal default.
+- Treat about 20 Han characters, 42 display-width units, or 20 display-width units per second as warning thresholds for single-line subtitles unless the user asks for dense subtitles.
 - Flag cues shorter than 1 second, longer than 6 seconds, or above 20 display-width units per second.
 - Add spaces between CJK characters and Latin/digit sequences when it improves readability.
 - Remove trailing punctuation in translated CJK subtitles only when that matches the requested style.

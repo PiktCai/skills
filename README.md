@@ -38,7 +38,7 @@ For manual installs, copy only the skill folder you need. For example, copy `tra
 python transub/scripts/subtitle_workflow.py doctor --probe
 python transub/scripts/subtitle_workflow.py models
 python transub/scripts/subtitle_workflow.py validate input.srt
-python transub/scripts/subtitle_workflow.py audit input.srt --max-width 42 --max-cps 20
+python transub/scripts/subtitle_workflow.py audit input.srt --max-han-chars 20 --max-cps 20
 ```
 
 Before transcription, check existing Python environments and cached faster-whisper models. If more than one cached model is available, ask which model variant to use instead of silently downloading or choosing a default.

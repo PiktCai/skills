@@ -14,16 +14,21 @@ For a skill, keep the first layer as scripts and the second layer as agent instr
 
 ### Translation
 
-Use this shape for chunked translation:
+First build a global brief for the whole file: subject matter, tone, recurring names, coined terms, glossary, and target subtitle style. If the file fits comfortably in context, translate the whole file in one structured pass. If it is too large, use overlapping windows and a live term/style ledger; do not treat windows as independent API batches.
+
+Use this shape for windowed translation:
 
 ```text
 You are a senior subtitle translator. Translate the values in this JSON object into TARGET_LANGUAGE.
 Keep the same keys. Do not add, remove, merge, split, or reorder entries.
 Use natural subtitle language, not word-for-word translation.
 Follow the glossary exactly when present.
-Use previous/next context only to disambiguate the current values.
+Use previous/next context to disambiguate the current values and keep boundary flow natural.
+Preserve the active term/style ledger. If a new repeated term appears, add it to the ledger for later reconciliation.
 Return only valid JSON.
 ```
+
+After windowed translation, run a whole-file reconciliation pass. Check every window boundary, unify terminology and tone, smooth sentence flow across cue boundaries, and shorten overlong cues before export.
 
 ### ASR Correction
 
@@ -44,6 +49,7 @@ Return only valid JSON.
 You are polishing translated subtitles.
 Make the text natural, concise, and conversational in the target language.
 Fix awkward literal translation and punctuation.
+For Chinese subtitles, aim for about 18-20 Han characters per cue. Shorter is fine when the utterance is short; avoid drifting far above 20 unless the timing or meaning truly requires it.
 Do not change meaning.
 Do not merge or split lines.
 Preserve the original keys exactly.
@@ -58,6 +64,8 @@ Run this checklist before final handoff:
 - No missing, duplicated, or reordered indices.
 - Timestamps are monotonic and each cue has `end > start`.
 - Translation output is valid JSON before reconstruction.
+- Windowed translation outputs have received a whole-file reconciliation pass; no raw batch concatenation.
+- Window boundaries have been reviewed for broken flow, repeated subjects, inconsistent names, and tone drift.
 - No commentary or markdown leaked into subtitle text.
 - Glossary terms are consistent.
 - Repeated names, products, acronyms, and coined concepts are preserved unless the user confirms a correction.
@@ -65,13 +73,15 @@ Run this checklist before final handoff:
 - Names, acronyms, numbers, URLs, code, and units are preserved or intentionally localized.
 - CJK/Latin spacing is readable.
 - Very long subtitle lines are flagged or reflowed only when allowed.
+- Chinese subtitles are generally around 18-20 Han characters per cue; cues far above 20 are flagged unless the user asked for dense subtitles.
 - Final `.srt` or `.vtt` validates after export.
 - `doctor --probe` and `models` were checked before installing faster-whisper or downloading model variants.
 
 ## Readability Defaults
 
 - English/source line display width: about 42 units.
-- CJK translated line display width: about 30 units.
+- Chinese translated cue length: about 18-20 Han characters.
+- CJK translated line display width: about 36-40 units.
 - Minimum duration: about 1.0-1.5 seconds when re-timing.
 - Maximum CPS risk threshold: about 20 for mixed text; lower for dense CJK-only subtitles.
 - Prefer sentence or phrase boundaries when splitting.

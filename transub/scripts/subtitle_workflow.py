@@ -64,6 +64,8 @@ def main() -> int:
     audit.add_argument("input", type=Path)
     audit.add_argument("--max-width", type=int, default=42)
     audit.add_argument("--severe-width", type=int, default=60)
+    audit.add_argument("--max-han-chars", type=int, default=20)
+    audit.add_argument("--severe-han-chars", type=int, default=24)
     audit.add_argument("--max-cps", type=float, default=20.0)
     audit.add_argument("--min-duration", type=float, default=1.0)
     audit.add_argument("--max-duration", type=float, default=6.0)
@@ -220,6 +222,8 @@ def cmd_audit(args: argparse.Namespace) -> int:
         segments,
         max_width=args.max_width,
         severe_width=args.severe_width,
+        max_han_chars=args.max_han_chars,
+        severe_han_chars=args.severe_han_chars,
         max_cps=args.max_cps,
         min_duration=args.min_duration,
         max_duration=args.max_duration,
@@ -230,13 +234,15 @@ def cmd_audit(args: argparse.Namespace) -> int:
         print(f"segments: {report['segments']}")
         print(f"avg_width: {report['avg_width']:.1f}")
         print(f"max_width: {report['max_width']}")
+        print(f"avg_han_chars: {report['avg_han_chars']:.1f}")
+        print(f"max_han_chars: {report['max_han_chars']}")
         print(f"avg_cps: {report['avg_cps']:.1f}")
         print(f"max_cps: {report['max_cps']:.1f}")
         print(f"warnings: {len(report['warnings'])}")
         for warning in report["warnings"][:20]:
             print(
                 f"  #{warning['index']} {warning['kind']} "
-                f"width={warning['width']} duration={warning['duration']:.2f}s cps={warning['cps']:.1f} "
+                f"width={warning['width']} han={warning['han_chars']} duration={warning['duration']:.2f}s cps={warning['cps']:.1f} "
                 f"text={warning['text']}"
             )
         if len(report["warnings"]) > 20:
@@ -593,6 +599,8 @@ def audit_segments(
     segments: Iterable[Segment],
     max_width: int,
     severe_width: int,
+    max_han_chars: int,
+    severe_han_chars: int,
     max_cps: float,
     min_duration: float,
     max_duration: float,
@@ -602,14 +610,19 @@ def audit_segments(
     for segment in segments:
         text = " ".join(segment.text.split())
         width = display_width(text)
+        han_chars = count_han_chars(text)
         duration = max(0.0, segment.end - segment.start)
         cps = width / duration if duration else float("inf")
-        rows.append({"width": width, "duration": duration, "cps": cps})
+        rows.append({"width": width, "han_chars": han_chars, "duration": duration, "cps": cps})
         kinds = []
         if width > severe_width:
             kinds.append("severe_width")
         elif width > max_width:
             kinds.append("width")
+        if han_chars > severe_han_chars:
+            kinds.append("severe_han_chars")
+        elif han_chars > max_han_chars:
+            kinds.append("han_chars")
         if cps > max_cps:
             kinds.append("cps")
         if duration < min_duration:
@@ -622,17 +635,29 @@ def audit_segments(
                     "index": segment.index,
                     "kind": kind,
                     "width": width,
+                    "han_chars": han_chars,
                     "duration": duration,
                     "cps": cps,
                     "text": text,
                 }
             )
     if not rows:
-        return {"segments": 0, "avg_width": 0.0, "max_width": 0, "avg_cps": 0.0, "max_cps": 0.0, "warnings": []}
+        return {
+            "segments": 0,
+            "avg_width": 0.0,
+            "max_width": 0,
+            "avg_han_chars": 0.0,
+            "max_han_chars": 0,
+            "avg_cps": 0.0,
+            "max_cps": 0.0,
+            "warnings": [],
+        }
     return {
         "segments": len(rows),
         "avg_width": sum(row["width"] for row in rows) / len(rows),
         "max_width": max(row["width"] for row in rows),
+        "avg_han_chars": sum(row["han_chars"] for row in rows) / len(rows),
+        "max_han_chars": max(row["han_chars"] for row in rows),
         "avg_cps": sum(row["cps"] for row in rows) / len(rows),
         "max_cps": max(row["cps"] for row in rows),
         "warnings": warnings,
@@ -643,6 +668,16 @@ def display_width(text: str) -> int:
     import unicodedata
 
     return sum(2 if unicodedata.east_asian_width(char) in {"W", "F"} else 1 for char in text)
+
+
+def count_han_chars(text: str) -> int:
+    return sum(
+        1
+        for char in text
+        if "\u4e00" <= char <= "\u9fff"
+        or "\u3400" <= char <= "\u4dbf"
+        or "\uf900" <= char <= "\ufaff"
+    )
 
 
 def segment_to_dict(segment: Segment) -> dict:
