@@ -1,0 +1,4 @@
+interface:
+  display_name: "Transub"
+  short_description: "Agent-native local subtitle workflow"
+  default_prompt: "Use $transub to transcribe, translate, polish, audit, and QA subtitle files while reusing local faster-whisper environments and cached models."
