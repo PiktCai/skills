@@ -18,7 +18,7 @@ SKILL_DIR=/path/to/transub
 python "$SKILL_DIR/scripts/subtitle_workflow.py" doctor
 python "$SKILL_DIR/scripts/subtitle_workflow.py" models
 python "$SKILL_DIR/scripts/subtitle_workflow.py" validate input.srt
-python "$SKILL_DIR/scripts/subtitle_workflow.py" audit input.srt --max-han-chars 20 --max-cps 20
+python "$SKILL_DIR/scripts/subtitle_workflow.py" audit input.srt --max-weighted-length 42 --max-cps 20
 python "$SKILL_DIR/scripts/subtitle_workflow.py" convert input.srt --output input.segments.json
 python "$SKILL_DIR/scripts/subtitle_workflow.py" export input.segments.json --format vtt --output input.vtt
 ```
@@ -69,8 +69,8 @@ The helper expects Python 3.10+, `ffmpeg` on `PATH`, and `faster-whisper` only f
 - Keep terminology consistent; load glossary files when provided.
 - Build a short term list from repeated names and concepts before polishing, and ask or preserve when uncertain instead of normalizing to a familiar term.
 - Use surrounding lines as context, but translate only the current window values.
-- Avoid overlong lines. For Chinese subtitles, target about 18-20 Han characters per cue; shorter is fine for short utterances, and more than about 20 should be treated as a readability warning rather than a normal default.
-- Treat about 20 Han characters, 42 display-width units, or 20 display-width units per second as warning thresholds for single-line subtitles unless the user asks for dense subtitles.
+- Avoid overlong lines. For Chinese subtitles, target about 18-20 Han characters per cue; for Japanese and Korean, stay in a similar short single-line range; for Latin-script subtitles, prefer concise cues around 35-42 letters or about 6-12 words. Shorter is fine for short utterances.
+- Treat the helper's weighted length, script-specific character counts, and 20 display-width units per second as warning signals. Do not force every language into the Chinese 20-character rule.
 - Flag cues shorter than 1 second, longer than 6 seconds, or above 20 display-width units per second.
 - Add spaces between CJK characters and Latin/digit sequences when it improves readability.
 - Remove trailing punctuation in translated CJK subtitles only when that matches the requested style.

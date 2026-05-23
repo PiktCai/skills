@@ -49,7 +49,7 @@ Return only valid JSON.
 You are polishing translated subtitles.
 Make the text natural, concise, and conversational in the target language.
 Fix awkward literal translation and punctuation.
-For Chinese subtitles, aim for about 18-20 Han characters per cue. Shorter is fine when the utterance is short; avoid drifting far above 20 unless the timing or meaning truly requires it.
+For Chinese subtitles, aim for about 18-20 Han characters per cue. For Japanese and Korean, keep cues in a similar compact single-line range. For Latin-script subtitles, prefer concise cues around 35-42 letters or about 6-12 words. Shorter is fine when the utterance is short; avoid drifting far above the relevant range unless timing or meaning truly requires it.
 Do not change meaning.
 Do not merge or split lines.
 Preserve the original keys exactly.
@@ -73,7 +73,7 @@ Run this checklist before final handoff:
 - Names, acronyms, numbers, URLs, code, and units are preserved or intentionally localized.
 - CJK/Latin spacing is readable.
 - Very long subtitle lines are flagged or reflowed only when allowed.
-- Chinese subtitles are generally around 18-20 Han characters per cue; cues far above 20 are flagged unless the user asked for dense subtitles.
+- Chinese subtitles are generally around 18-20 Han characters per cue; Japanese/Korean should remain similarly compact; Latin-script subtitles should usually stay around 35-42 letters or 6-12 words. Cues far above the relevant range are flagged unless the user asked for dense subtitles.
 - Final `.srt` or `.vtt` validates after export.
 - `doctor --probe` and `models` were checked before installing faster-whisper or downloading model variants.
 
@@ -81,7 +81,9 @@ Run this checklist before final handoff:
 
 - English/source line display width: about 42 units.
 - Chinese translated cue length: about 18-20 Han characters.
-- CJK translated line display width: about 36-40 units.
+- Japanese/Korean translated cue length: similarly compact, roughly low-20s characters for a single-line cue.
+- Latin-script translated cue length: about 35-42 letters or 6-12 words.
+- Cross-script weighted cue length: about 42 units. This follows the same idea as VideoLingo's weighted subtitle length check: CJK/Japanese count heavier than Latin characters, Korean slightly less than CJK/Japanese, and full-width symbols count heavier than half-width symbols.
 - Minimum duration: about 1.0-1.5 seconds when re-timing.
 - Maximum CPS risk threshold: about 20 for mixed text; lower for dense CJK-only subtitles.
 - Prefer sentence or phrase boundaries when splitting.

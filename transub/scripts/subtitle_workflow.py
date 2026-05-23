@@ -64,8 +64,16 @@ def main() -> int:
     audit.add_argument("input", type=Path)
     audit.add_argument("--max-width", type=int, default=42)
     audit.add_argument("--severe-width", type=int, default=60)
+    audit.add_argument("--max-weighted-length", type=float, default=42.0)
+    audit.add_argument("--severe-weighted-length", type=float, default=52.0)
     audit.add_argument("--max-han-chars", type=int, default=20)
     audit.add_argument("--severe-han-chars", type=int, default=24)
+    audit.add_argument("--max-kana-chars", type=int, default=24)
+    audit.add_argument("--severe-kana-chars", type=int, default=30)
+    audit.add_argument("--max-hangul-chars", type=int, default=24)
+    audit.add_argument("--severe-hangul-chars", type=int, default=30)
+    audit.add_argument("--max-latin-chars", type=int, default=42)
+    audit.add_argument("--severe-latin-chars", type=int, default=52)
     audit.add_argument("--max-cps", type=float, default=20.0)
     audit.add_argument("--min-duration", type=float, default=1.0)
     audit.add_argument("--max-duration", type=float, default=6.0)
@@ -222,8 +230,16 @@ def cmd_audit(args: argparse.Namespace) -> int:
         segments,
         max_width=args.max_width,
         severe_width=args.severe_width,
+        max_weighted_length=args.max_weighted_length,
+        severe_weighted_length=args.severe_weighted_length,
         max_han_chars=args.max_han_chars,
         severe_han_chars=args.severe_han_chars,
+        max_kana_chars=args.max_kana_chars,
+        severe_kana_chars=args.severe_kana_chars,
+        max_hangul_chars=args.max_hangul_chars,
+        severe_hangul_chars=args.severe_hangul_chars,
+        max_latin_chars=args.max_latin_chars,
+        severe_latin_chars=args.severe_latin_chars,
         max_cps=args.max_cps,
         min_duration=args.min_duration,
         max_duration=args.max_duration,
@@ -234,15 +250,26 @@ def cmd_audit(args: argparse.Namespace) -> int:
         print(f"segments: {report['segments']}")
         print(f"avg_width: {report['avg_width']:.1f}")
         print(f"max_width: {report['max_width']}")
+        print(f"avg_weighted_length: {report['avg_weighted_length']:.1f}")
+        print(f"max_weighted_length: {report['max_weighted_length']:.1f}")
         print(f"avg_han_chars: {report['avg_han_chars']:.1f}")
         print(f"max_han_chars: {report['max_han_chars']}")
+        print(f"avg_kana_chars: {report['avg_kana_chars']:.1f}")
+        print(f"max_kana_chars: {report['max_kana_chars']}")
+        print(f"avg_hangul_chars: {report['avg_hangul_chars']:.1f}")
+        print(f"max_hangul_chars: {report['max_hangul_chars']}")
+        print(f"avg_latin_chars: {report['avg_latin_chars']:.1f}")
+        print(f"max_latin_chars: {report['max_latin_chars']}")
         print(f"avg_cps: {report['avg_cps']:.1f}")
         print(f"max_cps: {report['max_cps']:.1f}")
         print(f"warnings: {len(report['warnings'])}")
         for warning in report["warnings"][:20]:
             print(
                 f"  #{warning['index']} {warning['kind']} "
-                f"width={warning['width']} han={warning['han_chars']} duration={warning['duration']:.2f}s cps={warning['cps']:.1f} "
+                f"width={warning['width']} weighted={warning['weighted_length']:.1f} "
+                f"han={warning['han_chars']} kana={warning['kana_chars']} "
+                f"hangul={warning['hangul_chars']} latin={warning['latin_chars']} "
+                f"duration={warning['duration']:.2f}s cps={warning['cps']:.1f} "
                 f"text={warning['text']}"
             )
         if len(report["warnings"]) > 20:
@@ -599,8 +626,16 @@ def audit_segments(
     segments: Iterable[Segment],
     max_width: int,
     severe_width: int,
+    max_weighted_length: float,
+    severe_weighted_length: float,
     max_han_chars: int,
     severe_han_chars: int,
+    max_kana_chars: int,
+    severe_kana_chars: int,
+    max_hangul_chars: int,
+    severe_hangul_chars: int,
+    max_latin_chars: int,
+    severe_latin_chars: int,
     max_cps: float,
     min_duration: float,
     max_duration: float,
@@ -610,19 +645,50 @@ def audit_segments(
     for segment in segments:
         text = " ".join(segment.text.split())
         width = display_width(text)
+        weighted = weighted_length(text)
         han_chars = count_han_chars(text)
+        kana_chars = count_kana_chars(text)
+        hangul_chars = count_hangul_chars(text)
+        latin_chars = count_latin_chars(text)
         duration = max(0.0, segment.end - segment.start)
         cps = width / duration if duration else float("inf")
-        rows.append({"width": width, "han_chars": han_chars, "duration": duration, "cps": cps})
+        rows.append(
+            {
+                "width": width,
+                "weighted_length": weighted,
+                "han_chars": han_chars,
+                "kana_chars": kana_chars,
+                "hangul_chars": hangul_chars,
+                "latin_chars": latin_chars,
+                "duration": duration,
+                "cps": cps,
+            }
+        )
         kinds = []
         if width > severe_width:
             kinds.append("severe_width")
         elif width > max_width:
             kinds.append("width")
+        if weighted > severe_weighted_length:
+            kinds.append("severe_weighted_length")
+        elif weighted > max_weighted_length:
+            kinds.append("weighted_length")
         if han_chars > severe_han_chars:
             kinds.append("severe_han_chars")
         elif han_chars > max_han_chars:
             kinds.append("han_chars")
+        if kana_chars > severe_kana_chars:
+            kinds.append("severe_kana_chars")
+        elif kana_chars > max_kana_chars:
+            kinds.append("kana_chars")
+        if hangul_chars > severe_hangul_chars:
+            kinds.append("severe_hangul_chars")
+        elif hangul_chars > max_hangul_chars:
+            kinds.append("hangul_chars")
+        if latin_chars > severe_latin_chars:
+            kinds.append("severe_latin_chars")
+        elif latin_chars > max_latin_chars:
+            kinds.append("latin_chars")
         if cps > max_cps:
             kinds.append("cps")
         if duration < min_duration:
@@ -635,7 +701,11 @@ def audit_segments(
                     "index": segment.index,
                     "kind": kind,
                     "width": width,
+                    "weighted_length": weighted,
                     "han_chars": han_chars,
+                    "kana_chars": kana_chars,
+                    "hangul_chars": hangul_chars,
+                    "latin_chars": latin_chars,
                     "duration": duration,
                     "cps": cps,
                     "text": text,
@@ -646,8 +716,16 @@ def audit_segments(
             "segments": 0,
             "avg_width": 0.0,
             "max_width": 0,
+            "avg_weighted_length": 0.0,
+            "max_weighted_length": 0.0,
             "avg_han_chars": 0.0,
             "max_han_chars": 0,
+            "avg_kana_chars": 0.0,
+            "max_kana_chars": 0,
+            "avg_hangul_chars": 0.0,
+            "max_hangul_chars": 0,
+            "avg_latin_chars": 0.0,
+            "max_latin_chars": 0,
             "avg_cps": 0.0,
             "max_cps": 0.0,
             "warnings": [],
@@ -656,8 +734,16 @@ def audit_segments(
         "segments": len(rows),
         "avg_width": sum(row["width"] for row in rows) / len(rows),
         "max_width": max(row["width"] for row in rows),
+        "avg_weighted_length": sum(row["weighted_length"] for row in rows) / len(rows),
+        "max_weighted_length": max(row["weighted_length"] for row in rows),
         "avg_han_chars": sum(row["han_chars"] for row in rows) / len(rows),
         "max_han_chars": max(row["han_chars"] for row in rows),
+        "avg_kana_chars": sum(row["kana_chars"] for row in rows) / len(rows),
+        "max_kana_chars": max(row["kana_chars"] for row in rows),
+        "avg_hangul_chars": sum(row["hangul_chars"] for row in rows) / len(rows),
+        "max_hangul_chars": max(row["hangul_chars"] for row in rows),
+        "avg_latin_chars": sum(row["latin_chars"] for row in rows) / len(rows),
+        "max_latin_chars": max(row["latin_chars"] for row in rows),
         "avg_cps": sum(row["cps"] for row in rows) / len(rows),
         "max_cps": max(row["cps"] for row in rows),
         "warnings": warnings,
@@ -670,6 +756,25 @@ def display_width(text: str) -> int:
     return sum(2 if unicodedata.east_asian_width(char) in {"W", "F"} else 1 for char in text)
 
 
+def weighted_length(text: str) -> float:
+    total = 0.0
+    for char in text:
+        code = ord(char)
+        if 0x4E00 <= code <= 0x9FFF or 0x3400 <= code <= 0x4DBF or 0xF900 <= code <= 0xFAFF:
+            total += 1.75
+        elif 0x3040 <= code <= 0x30FF:
+            total += 1.75
+        elif 0xAC00 <= code <= 0xD7A3 or 0x1100 <= code <= 0x11FF:
+            total += 1.5
+        elif 0x0E00 <= code <= 0x0E7F:
+            total += 1.0
+        elif 0xFF01 <= code <= 0xFF5E:
+            total += 1.75
+        else:
+            total += 1.0
+    return total
+
+
 def count_han_chars(text: str) -> int:
     return sum(
         1
@@ -678,6 +783,18 @@ def count_han_chars(text: str) -> int:
         or "\u3400" <= char <= "\u4dbf"
         or "\uf900" <= char <= "\ufaff"
     )
+
+
+def count_kana_chars(text: str) -> int:
+    return sum(1 for char in text if "\u3040" <= char <= "\u30ff")
+
+
+def count_hangul_chars(text: str) -> int:
+    return sum(1 for char in text if "\uac00" <= char <= "\ud7a3" or "\u1100" <= char <= "\u11ff")
+
+
+def count_latin_chars(text: str) -> int:
+    return sum(1 for char in text if "A" <= char <= "Z" or "a" <= char <= "z")
 
 
 def segment_to_dict(segment: Segment) -> dict:
